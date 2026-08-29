@@ -112,4 +112,18 @@ describe('CLI: storage export/restore', () => {
     }).trim();
     assert.strictEqual(legacy, 'legacy_value', 'legacy state file should still restore');
   });
+
+  test('storage -o honors --json', () => {
+    // Without -o this command already emits an envelope; the -o branch
+    // returned early and printed plain text instead.
+    const jsonPath = path.join(tmpDir, 'state-json.json');
+    const out = execSync(`${VIBIUM} storage -o ${jsonPath} --json`, {
+      encoding: 'utf-8',
+      timeout: 30000,
+    });
+    const env = JSON.parse(out.trim()); // throws on the stock binary
+    assert.strictEqual(env.ok, true, 'envelope should report ok');
+    assert.match(env.result, /^State saved to /, 'result should carry the human message');
+    assert.ok(fs.existsSync(jsonPath), 'the state file should still be written');
+  });
 });
