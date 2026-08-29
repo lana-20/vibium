@@ -96,3 +96,49 @@ describe('CLI: scroll help names its full surface (#445)', () => {
     assert.doesNotMatch(result.stdout, /element to scroll to\b/, 'the old scroll-to wording pointed at into-view');
   });
 });
+
+describe('CLI: mcp does not shadow the root --headless flag', () => {
+  // mcp declared its own --headless, and cobra's InheritedFlags() skips any
+  // parent flag a command already has. The flag therefore moved out of Global
+  // Flags and picked up a second description -- mcp was the only command in
+  // the CLI where that happened.
+  function helpOf(cmd) {
+    const result = spawnSync(VIBIUM, [cmd, '--help'], { encoding: 'utf-8', timeout: 30000 });
+    assert.strictEqual(result.status, 0, `${cmd} --help should exit 0`);
+    return result.stdout;
+  }
+
+  // Match only the flag's declaration line. The long description carries a
+  // "vibium mcp --headless" usage example above the sections, so a substring
+  // search would report the example's (absent) section instead.
+  function sectionOf(help, flag) {
+    const declaration = new RegExp(`^\\s+${flag}\\b`);
+    let section = null;
+    for (const line of help.split('\n')) {
+      const heading = line.match(/^(Flags|Global Flags):/);
+      if (heading) section = heading[1];
+      else if (declaration.test(line)) return section;
+    }
+    return null;
+  }
+
+  test('--headless is declared once, under Global Flags like every other command', () => {
+    const help = helpOf('mcp');
+    const declarations = help.split('\n').filter((l) => /^\s+--headless\b/.test(l));
+    assert.strictEqual(declarations.length, 1, 'a second declaration means the flag is shadowed again');
+    assert.strictEqual(sectionOf(help, '--headless'), 'Global Flags', 'mcp should inherit, not redeclare');
+  });
+
+  test('mcp renders --headless the same way an ordinary command does', () => {
+    const ordinary = sectionOf(helpOf('click'), '--headless');
+    // Pin the comparison value so a help-format change cannot make this pass
+    // by finding the flag in neither command.
+    assert.strictEqual(ordinary, 'Global Flags', 'click is the baseline; it must inherit');
+    assert.strictEqual(sectionOf(helpOf('mcp'), '--headless'), ordinary);
+  });
+
+  test('mcp still accepts --headless', () => {
+    const result = spawnSync(VIBIUM, ['mcp', '--headless', '--help'], { encoding: 'utf-8', timeout: 30000 });
+    assert.strictEqual(result.status, 0, 'the inherited flag must still parse');
+  });
+});

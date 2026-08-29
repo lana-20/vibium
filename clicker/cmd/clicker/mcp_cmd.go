@@ -123,6 +123,5 @@ with LLM agents like Claude Code.
 		},
 	}
 	cmd.Flags().String("screenshot-dir", "", "Directory for saving screenshots (default: ~/Pictures/Vibium, use \"\" to disable)")
-	cmd.Flags().Bool("headless", false, "Launch browsers in headless mode (no visible window)")
 	return cmd
 }
